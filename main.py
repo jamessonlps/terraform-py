@@ -8,8 +8,10 @@ from subprocess import run, PIPE
 commands = {
   "help": "See all available commands",
   "manage instances": "Create a new instance in your VPC",
+  "create sg": "Create a new security group",
+  "delete sg": "Delete a security group",
   # "delete instance": "Delete an existing instance in your VPC",
-  "end game": "Destroy all infra builded by terraform",
+  "game over": "Destroy all infra builded by terraform",
   "create user": "Create a new IAM user",
   "delete user": "Delete an IAM user",
   "exit": "Finishes the application"
@@ -22,8 +24,8 @@ class TerraformPy():
     os.system("terraform init")
 
     self.default_sec_group_id = None
-    self.default_ami_id = None
-    self.default_subnet_id = None
+    self.default_ami_id       = None
+    self.default_subnet_id    = None
 
 
 
@@ -74,6 +76,68 @@ class TerraformPy():
     
 
 
+  def init_sg_groups(self):
+    if (os.path.exists("security_groups.tf") == False):
+      with open(file="./templates/security_groups/security_group_setup.tf", mode="r", encoding="utf-8") as template:
+        with open(file="security_groups.tf", mode="w+", encoding="utf-8") as file:
+          content = template.read()
+          file.write(content)
+
+
+
+  def create_sg_group(self):
+    self.init_sg_groups()
+    
+    # Open config file and get data
+    with open(file="vars.tfvars.json", mode="r", encoding="utf-8") as file:
+      content = json.load(file)
+    
+    name = input("Enter a name to the security group: ")
+    description = input("Enter a description to the security group: ")
+
+    # Check if the new security group name exists
+    current_config = content["sg_config"]
+    for sg in current_config:
+      if sg["name"] == name:
+        print("Name for security group already exists!")
+        return
+
+    content["sg_config"].append({
+      "name": name,
+      "description": description
+    })
+
+    with open(file="vars.tfvars.json", mode="w+", encoding="utf-8") as file:
+      json.dump(obj=content, fp=file)
+
+    os.system('terraform apply -auto-approve -var-file="vars.tfvars.json"')
+
+
+
+  def delete_sg_group(self):
+    with open(file="vars.tfvars.json", mode="r", encoding="utf-8") as file:
+      content = json.load(file)
+    
+    name = input("\nEnter a name of the security group you want to delete: ")
+
+    prev_config = content["sg_config"]
+    new_config = []
+
+    for sg in prev_config:
+      if sg["name"] != name:
+        new_config.append(sg)
+
+    content["sg_config"] = new_config
+
+    with open(file="vars.tfvars.json", mode="w+", encoding="utf-8") as file:
+      json.dump(content, file)
+
+    os.system('terraform apply -auto-approve -var-file="vars.tfvars.json"')
+            
+
+    
+
+
 
   def start_app(self):
     self.init_vpc()
@@ -98,13 +162,17 @@ class TerraformPy():
         self.help_command()
       elif command == "manage instances":
         self.manage_instances()
+      elif command == "create sg":
+        self.create_sg_group()
+      elif command == "delete sg":
+        self.delete_sg_group()
       # elif command == "delete instance":
       #   self.delete_instance()
       elif command == "create user":
         self.create_iam_user()
       elif command == "delete user":
         self.delete_user()
-      elif command == "end game":
+      elif command == "game over":
         self.destroy()
 
     else:
@@ -220,6 +288,10 @@ class TerraformPy():
     os.system('terraform destroy -auto-approve -var-file="vars.tfvars.json"')
     os.remove("./vars.tfvars.json")
     os.remove("./instances.tf")
+    try:
+      os.remove("./security_groups.tf")
+    except FileNotFoundError:
+      pass
 
 
 terraform_app = TerraformPy()

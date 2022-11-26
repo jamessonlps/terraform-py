@@ -1,4 +1,4 @@
-# https://github.com/AKSarav/Terraform-Count-ForEach/blob/main/
+# https://github.com/AKSarav/Terraform-Count-ForEach
 
 variable "configuration" {
   description = "The total configuration, List of Objects/Dictionary"

@@ -30,5 +30,6 @@
         "var_aws_security_group_id"
       ]
     }
-  ]
+  ],
+  "sg_config": []
 }
