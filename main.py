@@ -8,6 +8,7 @@ from subprocess import run, PIPE
 commands = {
   "help": "See all available commands",
   "manage instances": "Create a new instance in your VPC",
+  "apply": "Execute terraform apply if the infra is not builded",
   "create sg": "Create a new security group",
   "delete sg": "Delete a security group",
   "add sg to instance": "Delete a security group",
@@ -103,25 +104,7 @@ class TerraformPy():
       json.dump(obj=content, fp=file)
 
     os.system('terraform apply -auto-approve -var-file="vars.tfvars.json"')
-
-
-
-  def delete_sg_group(self):
-    with open(file="vars.tfvars.json", mode="r", encoding="utf-8") as file:
-      content = json.load(file)
-    name = input("\nEnter a name of the security group you want to delete: ")
-    prev_config = content["sg_config"]
-    new_config = []
-
-    for sg in prev_config:
-      if sg["name"] != name:
-        new_config.append(sg)
-
-    content["sg_config"] = new_config
-    with open(file="vars.tfvars.json", mode="w+", encoding="utf-8") as file:
-      json.dump(content, file)
-    os.system('terraform apply -auto-approve -var-file="vars.tfvars.json"')
-            
+     
 
     
   def start_app(self):
@@ -134,6 +117,8 @@ class TerraformPy():
       try:
         command = input("\nIf you don't know the available commands, try help\n$ ")
         self.execute(command)
+        if command == "game over":
+          break
       except KeyboardInterrupt:
         print("\nStopping application...")
         time.sleep(1)
@@ -147,14 +132,14 @@ class TerraformPy():
         self.help_command()
       elif command == "manage instances":
         self.manage_instances()
+      elif command == "apply":
+        self.init_vpc()
       elif command == "create sg":
         self.create_sg_group()
       elif command == "delete sg":
-        self.delete_sg_group()
+        self.delete_security_group()
       elif command == "add sg to instance":
         self.set_sg_to_instance()
-      # elif command == "delete instance":
-      #   self.delete_instance()
       elif command == "create user":
         self.create_iam_user()
       elif command == "delete user":
@@ -209,6 +194,34 @@ class TerraformPy():
     else:
       print("Security group not found!")
     
+
+
+  def delete_security_group(self):
+    sg_name = input("\nEnter the security group name: ")
+
+    sg_id = self.get_sg_id_by_name(sg_name)
+
+    if sg_id is not None:
+      # Remove sg id from the instances
+      with open(file="./vars.tfvars.json", mode="r", encoding="utf-8") as file:
+        content = json.load(file)
+      for instance in content["configuration"]:
+        if (sg_id in instance["vpc_security_group_ids"]):
+          instance["vpc_security_group_ids"].remove(sg_id)
+      
+      # Remove sg from the security groups
+      sg_list = []
+      for sg in content["sg_config"]:
+        if (sg["name"] != sg_name):
+          sg_list.append(sg)
+      content["sg_config"] = sg_list
+      
+      # Update config file and apply changes
+      with open(file="./vars.tfvars.json", mode="w+", encoding="utf-8") as file:
+        json.dump(content, file)
+      os.system('terraform apply -auto-approve -var-file="vars.tfvars.json"')
+      return
+    print("Security group not found")
 
 
 
