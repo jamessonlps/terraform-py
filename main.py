@@ -4,19 +4,10 @@ import json
 import re
 import pprint
 from subprocess import run, PIPE
+from src.commands import COMMANDS
+from src.constants import *
+from src.utils import *
 
-commands = {
-  "help": "See all available commands",
-  "manage instances": "Create a new instance in your VPC",
-  "apply": "Execute terraform apply if the infra is not builded",
-  "create sg": "Create a new security group",
-  "delete sg": "Delete a security group",
-  "add sg to instance": "Delete a security group",
-  "game over": "Destroy all infra builded by terraform",
-  "create user": "Create a new IAM user",
-  "delete user": "Delete an IAM user",
-  "exit": "Finishes the application"
-}
 
 class TerraformPy():
 
@@ -31,8 +22,7 @@ class TerraformPy():
 
 
   def init_vpc(self):
-    with open(file="./terraform.tfstate", mode="r", encoding="utf-8") as file:
-      content = json.load(file)
+    content = read_tfstate()
     resources = content["resources"]
     for resource in resources:
       if resource["type"] == "aws_vpc":
@@ -43,36 +33,36 @@ class TerraformPy():
 
   def init_instances(self):
     # Load data
-    with open(file="./terraform.tfstate", mode="r", encoding="utf-8") as file:
-      content = json.load(file)
-      for resource in content["resources"]:
-        if resource["type"] == "aws_ami":
-          self.default_ami_id = resource["instances"][0]["attributes"]["id"]
-        elif resource["type"] == "aws_security_group":
-          self.default_sec_group_id = resource["instances"][0]["attributes"]["id"]
-        elif resource["type"] == "aws_subnet":
-          self.default_subnet_id = resource["instances"][0]["attributes"]["id"]
+    content = read_tfstate()
+
+    for resource in content["resources"]:
+      if resource["type"] == "aws_ami":
+        self.default_ami_id = resource["instances"][0]["attributes"]["id"]
+      elif resource["type"] == "aws_security_group":
+        self.default_sec_group_id = resource["instances"][0]["attributes"]["id"]
+      elif resource["type"] == "aws_subnet":
+        self.default_subnet_id = resource["instances"][0]["attributes"]["id"]
 
     with open(file="./templates/instances/instance_setup.tf", mode="r", encoding="utf-8") as template:
-      with open(file="instances.tf", mode="w+", encoding="utf-8") as file:
+      with open(file=FILE_INSTANCES, mode="w+", encoding="utf-8") as file:
         content = template.read()
         file.write(content)
 
     with open(file="./templates/config/vars.json", mode="r", encoding="utf-8") as template:
-      with open(file="vars.tfvars.json", mode="w+", encoding="utf-8") as config:
+      with open(file=FILE_TFVARS_JSON, mode="w+", encoding="utf-8") as config:
         content = template.read()
         content = content.replace("var_ami_id", self.default_ami_id)
         content = content.replace("var_aws_subnet_id", self.default_subnet_id)
         content = content.replace("var_aws_security_group_id", self.default_sec_group_id)
         config.write(content)
-    os.system('terraform apply -auto-approve -var-file="vars.tfvars.json"')
+    terraform_apply()
     
 
 
   def init_sg_groups(self):
-    if (os.path.exists("security_groups.tf") == False):
+    if (os.path.exists(FILE_SECURITY_GROUPS) == False):
       with open(file="./templates/security_groups/security_group_setup.tf", mode="r", encoding="utf-8") as template:
-        with open(file="security_groups.tf", mode="w+", encoding="utf-8") as file:
+        with open(file=FILE_SECURITY_GROUPS, mode="w+", encoding="utf-8") as file:
           content = template.read()
           file.write(content)
 
@@ -82,8 +72,7 @@ class TerraformPy():
     self.init_sg_groups()
     
     # Open config file and get data
-    with open(file="vars.tfvars.json", mode="r", encoding="utf-8") as file:
-      content = json.load(file)
+    content = read_vars()
     
     name = input("Enter a name to the security group: ")
     description = input("Enter a description to the security group: ")
@@ -100,34 +89,13 @@ class TerraformPy():
       "description": description
     })
 
-    with open(file="vars.tfvars.json", mode="w+", encoding="utf-8") as file:
-      json.dump(obj=content, fp=file)
-
-    os.system('terraform apply -auto-approve -var-file="vars.tfvars.json"')
-     
-
-    
-  def start_app(self):
-    self.init_vpc()
-
-    if (os.path.exists("./vars.tfvars.json") == False) and (os.path.exists("./instances.tf") == False):
-      self.init_instances()
-
-    while (1):
-      try:
-        command = input("\nIf you don't know the available commands, try help\n$ ")
-        self.execute(command)
-        if command == "game over":
-          break
-      except KeyboardInterrupt:
-        print("\nStopping application...")
-        time.sleep(1)
-        break
+    write_vars(content=content)
+    terraform_apply()
 
 
 
   def execute(self, command: str):
-    if (command in commands.keys()):
+    if (command in COMMANDS.keys()):
       if command == "help":
         self.help_command()
       elif command == "manage instances":
@@ -144,6 +112,8 @@ class TerraformPy():
         self.create_iam_user()
       elif command == "delete user":
         self.delete_user()
+      elif command == "list":
+        self.list_resources()
       elif command == "game over":
         self.destroy()
     else:
@@ -155,17 +125,14 @@ class TerraformPy():
     instance_type = input("Enter a type of the instances: ")
     instance_amount = input("Enter the number of the instances: ]")
 
-    with open("vars.tfvars.json", mode="r", encoding="utf-8") as file:
-      content = json.load(file)
+    content = read_vars()
 
     for instance in content["configuration"]:
       if instance["instance_type"] == instance_type:
         instance["no_of_instances"] = instance_amount
 
-    with open(file="vars.tfvars.json", mode="w+", encoding="utf-8") as file:
-      json.dump(content, file)
-      
-    os.system('terraform apply -auto-approve -var-file="vars.tfvars.json"')
+    write_vars(content=content)
+    terraform_apply()
 
 
 
@@ -176,21 +143,17 @@ class TerraformPy():
     sg_id = self.get_sg_id_by_name(sg_name)
 
     if sg_id is not None:
-      with open("./vars.tfvars.json", mode="r", encoding="utf-8") as file:
-        content = json.load(file)
-      
+      content = read_vars()
+      # Appends the security group id in the instance configuration
       for instance in content["configuration"]:
         if (instance["application_name"] == instance_name) and (sg_id not in instance["vpc_security_group_ids"]):
           instance["vpc_security_group_ids"].append(sg_id)
-
-          with open("./vars.tfvars.json", mode="w+", encoding="utf-8") as file:
-            json.dump(content, file)
-
-          os.system('terraform apply -auto-approve -var-file="vars.tfvars.json"')
+          
+          write_vars(content=content)
+          terraform_apply()
 
           return
-
-      print("Nada foi feito")
+      print("Instance not found")
     else:
       print("Security group not found!")
     
@@ -203,8 +166,7 @@ class TerraformPy():
 
     if sg_id is not None:
       # Remove sg id from the instances
-      with open(file="./vars.tfvars.json", mode="r", encoding="utf-8") as file:
-        content = json.load(file)
+      content = read_vars()
       for instance in content["configuration"]:
         if (sg_id in instance["vpc_security_group_ids"]):
           instance["vpc_security_group_ids"].remove(sg_id)
@@ -217,9 +179,8 @@ class TerraformPy():
       content["sg_config"] = sg_list
       
       # Update config file and apply changes
-      with open(file="./vars.tfvars.json", mode="w+", encoding="utf-8") as file:
-        json.dump(content, file)
-      os.system('terraform apply -auto-approve -var-file="vars.tfvars.json"')
+      write_vars(content=content)
+      terraform_apply()
       return
     print("Security group not found")
 
@@ -235,7 +196,7 @@ class TerraformPy():
         file.write(content)
 
     print(f"\nTerraform applying... Create user {username}")
-    os.system("terraform apply -auto-approve")
+    terraform_apply()
     os.rename("./new_user.tf", f"user_{username}.tf")
 
 
@@ -244,23 +205,25 @@ class TerraformPy():
     username = input("Enter the username to the new user: ")
     try:
       os.remove(f"user_{username}.tf")
-      os.system("terraform apply -auto-approve")
+      terraform_apply()
     except:
       print("User not found")
 
+
+  def list_resources(self):
+    os.system("terraform output")
 
 
   def help_command(self):
     print('\n---------------------------------------')
     print("You are able to execute these commands:\n")
-    for command, action in commands.items():
+    for command, action in COMMANDS.items():
       print(f"{command} - {action}")
 
 
 
   def get_sg_id_by_name(self, name: str):
-    with open(file="./terraform.tfstate", mode="r", encoding="utf-8") as file:
-      content = json.load(file)
+    content = read_tfstate()
 
     resources = content["resources"]
     for resource in resources:
@@ -275,14 +238,28 @@ class TerraformPy():
   
   def destroy(self):
     print("\nDestroying the world...\n")
-    os.system('terraform destroy -auto-approve -var-file="vars.tfvars.json"')
-    os.remove("./vars.tfvars.json")
-    os.remove("./instances.tf")
+    terraform_destroy()
+    os.remove(FILE_TFVARS_JSON)
+    os.remove(FILE_INSTANCES)
     try:
-      os.remove("./security_groups.tf")
+      os.remove(FILE_SECURITY_GROUPS)
     except FileNotFoundError:
       pass
 
 
 terraform_app = TerraformPy()
-terraform_app.start_app()
+terraform_app.init_vpc()
+
+if (os.path.exists(FILE_TFVARS_JSON) == False) and (os.path.exists(FILE_INSTANCES) == False):
+  terraform_app.init_instances()
+
+while True:
+  try:
+    command = input("\nIf you don't know the available commands, try help\n$ ")
+    terraform_app.execute(command)
+    if command == "game over":
+      break
+  except KeyboardInterrupt:
+    print("\nStopping application...")
+    time.sleep(1)
+    break
