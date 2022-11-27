@@ -28,34 +28,38 @@ class TerraformPy():
       if resource["type"] == "aws_vpc":
         return
     os.system("terraform apply -auto-approve")
+    self.init_instances()
+    self.init_sg_groups()
+    self.init_users()
 
 
 
   def init_instances(self):
-    # Load data
-    content = read_tfstate()
+    if (os.path.exists(FILE_INSTANCES) == False):
+      # Load data
+      content = read_tfstate()
 
-    for resource in content["resources"]:
-      if resource["type"] == "aws_ami":
-        self.default_ami_id = resource["instances"][0]["attributes"]["id"]
-      elif resource["type"] == "aws_security_group":
-        self.default_sec_group_id = resource["instances"][0]["attributes"]["id"]
-      elif resource["type"] == "aws_subnet":
-        self.default_subnet_id = resource["instances"][0]["attributes"]["id"]
+      for resource in content["resources"]:
+        if resource["type"] == "aws_ami":
+          self.default_ami_id = resource["instances"][0]["attributes"]["id"]
+        elif resource["type"] == "aws_security_group":
+          self.default_sec_group_id = resource["instances"][0]["attributes"]["id"]
+        elif resource["type"] == "aws_subnet":
+          self.default_subnet_id = resource["instances"][0]["attributes"]["id"]
 
-    with open(file="./templates/instances/instance_setup.tf", mode="r", encoding="utf-8") as template:
-      with open(file=FILE_INSTANCES, mode="w+", encoding="utf-8") as file:
-        content = template.read()
-        file.write(content)
+      with open(file="./templates/instances/instance_setup.tf", mode="r", encoding="utf-8") as template:
+        with open(file=FILE_INSTANCES, mode="w+", encoding="utf-8") as file:
+          content = template.read()
+          file.write(content)
 
-    with open(file="./templates/config/vars.json", mode="r", encoding="utf-8") as template:
-      with open(file=FILE_TFVARS_JSON, mode="w+", encoding="utf-8") as config:
-        content = template.read()
-        content = content.replace("var_ami_id", self.default_ami_id)
-        content = content.replace("var_aws_subnet_id", self.default_subnet_id)
-        content = content.replace("var_aws_security_group_id", self.default_sec_group_id)
-        config.write(content)
-    terraform_apply()
+      with open(file="./templates/config/vars.json", mode="r", encoding="utf-8") as template:
+        with open(file=FILE_TFVARS_JSON, mode="w+", encoding="utf-8") as config:
+          content = template.read()
+          content = content.replace("var_ami_id", self.default_ami_id)
+          content = content.replace("var_aws_subnet_id", self.default_subnet_id)
+          content = content.replace("var_aws_security_group_id", self.default_sec_group_id)
+          config.write(content)
+      terraform_apply()
     
 
 
@@ -65,6 +69,17 @@ class TerraformPy():
         with open(file=FILE_SECURITY_GROUPS, mode="w+", encoding="utf-8") as file:
           content = template.read()
           file.write(content)
+      terraform_apply()
+
+
+
+  def init_users(self):
+    if (os.path.exists(FILE_USERS) == False):
+      with open(file="./templates/users/users_setup.tf", mode="r", encoding="utf-8") as template:
+        with open(file=FILE_USERS, mode="w+", encoding="utf-8") as file:
+          content = template.read()
+          file.write(content)
+      terraform_apply()
 
 
 
@@ -91,6 +106,48 @@ class TerraformPy():
 
     write_vars(content=content)
     terraform_apply()
+  
+
+
+
+  def create_user(self):
+    self.init_users()
+     # Open config file and get data
+    content = read_vars()
+    
+    name = input("Enter a name to the user: ")
+    # Check if the new user name exists
+    current_config = content["users_config"]
+    for user in current_config:
+      if user["name"] == name:
+        print("Name for user already exists!")
+        return
+
+    content["users_config"].append({
+      "name": name
+    })
+
+    write_vars(content=content)
+    terraform_apply()
+  
+
+
+  def delete_user(self):
+    username = input("\nEnter the user name you want to delete: ")
+    content = read_vars()
+      
+    # Remove user from the users
+    users_list = []
+    for user in content["users_config"]:
+      if (user["name"] != username):
+        users_list.append(user)
+    content["users_config"] = users_list
+    
+    # Update config file and apply changes
+    write_vars(content=content)
+    terraform_apply()
+    return
+
 
 
 
@@ -109,7 +166,7 @@ class TerraformPy():
       elif command == "add sg to instance":
         self.set_sg_to_instance()
       elif command == "create user":
-        self.create_iam_user()
+        self.create_user()
       elif command == "delete user":
         self.delete_user()
       elif command == "list":
@@ -186,32 +243,9 @@ class TerraformPy():
 
 
 
-  def create_iam_user(self):
-    username = input("Enter the username to the new user: ")
-
-    with open("./templates/users/user.tf", "r", encoding="utf-8") as template:
-      with open("./new_user.tf", mode="w+", encoding="utf-8") as file:
-        content = template.read()
-        content = content.replace("var_iam_user_name", username)
-        file.write(content)
-
-    print(f"\nTerraform applying... Create user {username}")
-    terraform_apply()
-    os.rename("./new_user.tf", f"user_{username}.tf")
-
-
-
-  def delete_user(self):
-    username = input("Enter the username to the new user: ")
-    try:
-      os.remove(f"user_{username}.tf")
-      terraform_apply()
-    except:
-      print("User not found")
-
-
   def list_resources(self):
     os.system("terraform output")
+
 
 
   def help_command(self):
@@ -243,6 +277,10 @@ class TerraformPy():
     os.remove(FILE_INSTANCES)
     try:
       os.remove(FILE_SECURITY_GROUPS)
+    except FileNotFoundError:
+      pass
+    try:
+      os.remove(FILE_USERS)
     except FileNotFoundError:
       pass
 
