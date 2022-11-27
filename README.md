@@ -45,10 +45,10 @@ The application will then start creating the entire base infrastructure, that is
 
 Commands
 
-- `help` -
-- `manage instances` -
-- `create user` -
-- `delete user` -
-- `create sg` -
-- `delete sg` -
-- `add sg to instance` -
+- `help` - See all commands
+- `manage instances` - Increase or decrease instances
+- `create user` - Create an new user
+- `delete user` - Delete an user
+- `create sg` - Create a new security group
+- `delete sg` - Delete a security group
+- `add sg to instance` - Associate the security group to a group of instances

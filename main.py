@@ -89,14 +89,14 @@ class TerraformPy():
     # Open config file and get data
     content = read_vars()
     
-    name = input("Enter a name to the security group: ")
+    name = input("\nEnter a name to the security group: ")
     description = input("Enter a description to the security group: ")
 
     # Check if the new security group name exists
     current_config = content["sg_config"]
     for sg in current_config:
       if sg["name"] == name:
-        print("Name for security group already exists!")
+        print("\nName for security group already exists!")
         return
 
     content["sg_config"].append({
@@ -115,12 +115,12 @@ class TerraformPy():
      # Open config file and get data
     content = read_vars()
     
-    name = input("Enter a name to the user: ")
+    name = input("\nEnter a name to the user: ")
     # Check if the new user name exists
     current_config = content["users_config"]
     for user in current_config:
       if user["name"] == name:
-        print("Name for user already exists!")
+        print("\nName for user already exists!")
         return
 
     content["users_config"].append({
@@ -179,8 +179,8 @@ class TerraformPy():
 
 
   def manage_instances(self):
-    instance_type = input("Enter a type of the instances: ")
-    instance_amount = input("Enter the number of the instances: ]")
+    instance_type = input("\nEnter a type of the instances: ")
+    instance_amount = input("Enter the number of the instances: ")
 
     content = read_vars()
 
@@ -210,9 +210,9 @@ class TerraformPy():
           terraform_apply()
 
           return
-      print("Instance not found")
+      print("\nInstance not found")
     else:
-      print("Security group not found!")
+      print("\nSecurity group not found!")
     
 
 
@@ -239,7 +239,7 @@ class TerraformPy():
       write_vars(content=content)
       terraform_apply()
       return
-    print("Security group not found")
+    print("\nSecurity group not found")
 
 
 

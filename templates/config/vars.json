@@ -1,7 +1,17 @@
 {
   "configuration": [
     {
-      "application_name": "VM-a",
+      "application_name": "ec2-micro",
+      "ami": "var_ami_id",
+      "no_of_instances": "0",
+      "instance_type": "t2.micro",
+      "subnet_id": "var_aws_subnet_id",
+      "vpc_security_group_ids": [
+        "var_aws_security_group_id"
+      ]
+    },
+    {
+      "application_name": "ec2-medium",
       "ami": "var_ami_id",
       "no_of_instances": "0",
       "instance_type": "t2.medium",
@@ -11,20 +21,10 @@
       ]
     },
     {
-      "application_name": "VM-b",
+      "application_name": "ec2-large",
       "ami": "var_ami_id",
       "no_of_instances": "0",
       "instance_type": "t2.large",
-      "subnet_id": "var_aws_subnet_id",
-      "vpc_security_group_ids": [
-        "var_aws_security_group_id"
-      ]
-    },
-    {
-      "application_name": "VM-c",
-      "ami": "var_ami_id",
-      "no_of_instances": "0",
-      "instance_type": "t2.micro",
       "subnet_id": "var_aws_subnet_id",
       "vpc_security_group_ids": [
         "var_aws_security_group_id"
