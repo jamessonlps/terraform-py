@@ -1,16 +1,3 @@
-# HELP_COMMAND = "help"
-# MANAGE_INSTANCES_COMMAND = "manage instances"
-
-# CREATE_SEC_GROUP_COMMAND = "create sg"
-# DELETE_SEC_GROUP_COMMAND = "delete sg"
-# ADD_SEC_GROUP_TO_INSTANCE_COMMAND = "add sg"
-
-# CREATE_IAM_USER_COMMAND = "create user"
-# DELETE_IAM_USER_COMMAND = "delete user"
-
-# BREAK_COMMAND = "game over"
-# EXIT_COMMAND = "exit"
-
 COMMANDS = {
   "help": "See all available commands",
   "manage instances": "Create a new instance in your VPC",

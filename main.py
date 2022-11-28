@@ -1,9 +1,5 @@
 import os
 import time
-import json
-import re
-import pprint
-from subprocess import run, PIPE
 from src.commands import COMMANDS
 from src.constants import *
 from src.utils import *
@@ -12,7 +8,7 @@ from src.utils import *
 class TerraformPy():
 
   def __init__(self) -> None:
-    print("Starting application...")
+    print(BLUE + BOLD + "\nStarting application...")
     os.system("terraform init")
 
     self.default_sec_group_id = None
@@ -29,7 +25,7 @@ class TerraformPy():
         return
     os.system("terraform apply -auto-approve")
     self.init_instances()
-    self.init_sg_groups()
+    self.init_security_groups()
     self.init_users()
 
 
@@ -59,16 +55,19 @@ class TerraformPy():
           content = content.replace("var_aws_subnet_id", self.default_subnet_id)
           content = content.replace("var_aws_security_group_id", self.default_sec_group_id)
           config.write(content)
+      
+      print(BLUE + "\nInitializing instances configuration...")
       terraform_apply()
     
 
 
-  def init_sg_groups(self):
+  def init_security_groups(self):
     if (os.path.exists(FILE_SECURITY_GROUPS) == False):
       with open(file="./templates/security_groups/security_group_setup.tf", mode="r", encoding="utf-8") as template:
         with open(file=FILE_SECURITY_GROUPS, mode="w+", encoding="utf-8") as file:
           content = template.read()
           file.write(content)
+      print(BLUE + "\nInitializing security groups configuration...")
       terraform_apply()
 
 
@@ -79,24 +78,25 @@ class TerraformPy():
         with open(file=FILE_USERS, mode="w+", encoding="utf-8") as file:
           content = template.read()
           file.write(content)
+      print(BLUE + "\nInitializing users configuration...")
       terraform_apply()
 
 
 
   def create_sg_group(self):
-    self.init_sg_groups()
+    self.init_security_groups()
     
     # Open config file and get data
     content = read_vars()
     
-    name = input("\nEnter a name to the security group: ")
-    description = input("Enter a description to the security group: ")
+    name = input(BOLD + "\nEnter a name to the security group: ")
+    description = input(BOLD + "Enter a description to the security group: ")
 
     # Check if the new security group name exists
     current_config = content["sg_config"]
     for sg in current_config:
       if sg["name"] == name:
-        print("\nName for security group already exists!")
+        print(RED + "\nName for security group already exists!")
         return
 
     content["sg_config"].append({
@@ -115,12 +115,12 @@ class TerraformPy():
      # Open config file and get data
     content = read_vars()
     
-    name = input("\nEnter a name to the user: ")
+    name = input(BOLD + "\nEnter a name to the user: ")
     # Check if the new user name exists
     current_config = content["users_config"]
     for user in current_config:
       if user["name"] == name:
-        print("\nName for user already exists!")
+        print(RED + "\nName for user already exists!")
         return
 
     content["users_config"].append({
@@ -133,7 +133,7 @@ class TerraformPy():
 
 
   def delete_user(self):
-    username = input("\nEnter the user name you want to delete: ")
+    username = input(BOLD + "\nEnter the user name you want to delete: ")
     content = read_vars()
       
     # Remove user from the users
@@ -178,13 +178,13 @@ class TerraformPy():
       elif command == "game over":
         self.destroy()
     else:
-      print("\nInvalid command\n")
+      print(RED + BOLD + "\nInvalid command\n")
 
 
 
   def manage_instances(self):
-    instance_type = input("\nEnter a type of the instances: ")
-    instance_amount = input("Enter the number of the instances: ")
+    instance_type = input(BOLD + "\nEnter a type of the instances: ")
+    instance_amount = input(BOLD + "Enter the number of the instances: ")
 
     content = read_vars()
 
@@ -198,8 +198,8 @@ class TerraformPy():
 
 
   def set_sg_to_instance(self):
-    instance_name = input("\nEnter the instance application name: ")
-    sg_name       = input("Enter the security group name: ")
+    instance_name = input(BOLD + "\nEnter the instance application name: ")
+    sg_name       = input(BOLD + "Enter the security group name: ")
 
     sg_id = self.get_sg_id_by_name(sg_name)
 
@@ -214,14 +214,14 @@ class TerraformPy():
           terraform_apply()
 
           return
-      print("\nInstance not found")
+      print(RED + "\nInstance not found")
     else:
-      print("\nSecurity group not found!")
+      print(RED + "\nSecurity group not found!")
     
 
 
   def delete_security_group(self):
-    sg_name = input("\nEnter the security group name: ")
+    sg_name = input(BOLD + "\nEnter the security group name: ")
 
     sg_id = self.get_sg_id_by_name(sg_name)
 
@@ -243,7 +243,7 @@ class TerraformPy():
       write_vars(content=content)
       terraform_apply()
       return
-    print("\nSecurity group not found")
+    print(RED + "\nSecurity group not found")
 
 
 
@@ -251,30 +251,30 @@ class TerraformPy():
     types = ["ingress", "egress"]
     protocols = ["tcp", "udp"]
 
-    name      = input("\nEnter a name to this rule (must be unique): ")
-    type_rule = input("Enter the type of the rule: \"ingress\" or \"egress\": ")
-    from_port = input("Start port: ")
-    to_port   = input("End port: ")
-    protocol  = input("Enter the protocol: \"tcp\", \"udp\" | \"-1\" for egress: ")
-    sg_name   = input("Enter the security group name: ")
+    name      = input(BOLD + "\nEnter a name to this rule (must be unique): ")
+    type_rule = input(BOLD + "Enter the type of the rule: \"ingress\" or \"egress\": ")
+    from_port = input(BOLD + "Start port: ")
+    to_port   = input(BOLD + "End port: ")
+    protocol  = input(BOLD + "Enter the protocol: \"tcp\", \"udp\" | \"-1\" for egress: ")
+    sg_name   = input(BOLD + "Enter the security group name: ")
 
     if (type_rule == "egress"):
       protocol = "-1"
 
     # Check some errors
     if type_rule not in types:
-      print("\nInvalid type")
+      print(RED + "\nInvalid type")
       return
     if protocol not in protocols:
-      print("\nInvalid protocol")
+      print(RED + "\nInvalid protocol")
       return
     try:
       port_in = int(from_port)
       port_out = int(to_port)
       if (port_in < 0) or (port_out < 0):
-        print("\nInvalid port")
+        print(RED + "\nInvalid port")
     except:
-        print("\nInvalid port")
+        print(RED + "\nInvalid port")
 
     sg_id = self.get_sg_id_by_name(sg_name)
 
@@ -299,12 +299,12 @@ class TerraformPy():
 
       terraform_apply()
     else:
-      print("\nSecurity group not found!")
+      print(RED + "\nSecurity group not found!")
 
 
 
   def delete_rule_to_sg(self):
-    name = input("\nEnter the rule name you want to delete: ")
+    name = input(BOLD + "\nEnter the rule name you want to delete: ")
 
     with open("./rules.tf", mode="r", encoding="UTF-8") as file:
       lines = file.readlines()
@@ -334,7 +334,7 @@ class TerraformPy():
 
     # rule not found
     if (len(content) == len(list_index)):
-      print("\nRule not found")
+      print(RED + "\nRule not found")
       return
     
     with open("./rules.tf", "w+", encoding="UTF-8") as file:
@@ -349,10 +349,10 @@ class TerraformPy():
 
 
   def help_command(self):
-    print('\n---------------------------------------')
-    print("You are able to execute these commands:\n")
+    print(GREEN + '\n---------------------------------------')
+    print(GREEN + "You are able to execute these commands:\n" + RESET)
     for command, action in COMMANDS.items():
-      print(f"{command} - {action}")
+      print(CYAN + f"{command} - {action}" + RESET)
 
 
 
@@ -371,7 +371,7 @@ class TerraformPy():
 
   
   def destroy(self):
-    print("\nDestroying the world...\n")
+    print(RED + BOLD + "\nDestroying the world...\n")
     terraform_destroy()
     os.remove(FILE_TFVARS_JSON)
     os.remove(FILE_INSTANCES)
@@ -398,6 +398,6 @@ while True:
     if command == "game over":
       break
   except KeyboardInterrupt:
-    print("\nStopping application...")
+    print(RED + "\nStopping application...")
     time.sleep(1)
     break

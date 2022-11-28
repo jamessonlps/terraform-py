@@ -67,17 +67,6 @@ resource "aws_security_group" "this" {
 }
 
 
-# resource "aws_network_interface" "this" {
-#   subnet_id       = aws_subnet.this.id
-#   private_ips     = ["172.16.10.100"]
-#   security_groups = [aws_security_group.this.id]
-
-#   tags = {
-#     Name = "default-network-interface"
-#   }
-# }
-
-
 resource "aws_route_table" "this" {
   vpc_id = aws_vpc.this.id
 
