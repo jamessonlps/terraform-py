@@ -171,6 +171,10 @@ class TerraformPy():
         self.delete_user()
       elif command == "list":
         self.list_resources()
+      elif command == "create rule":
+        self.create_rule_to_sg()
+      elif command == "delete rule":
+        self.delete_rule_to_sg()
       elif command == "game over":
         self.destroy()
     else:
@@ -240,6 +244,102 @@ class TerraformPy():
       terraform_apply()
       return
     print("\nSecurity group not found")
+
+
+
+  def create_rule_to_sg(self):
+    types = ["ingress", "egress"]
+    protocols = ["tcp", "udp"]
+
+    name      = input("\nEnter a name to this rule (must be unique): ")
+    type_rule = input("Enter the type of the rule: \"ingress\" or \"egress\": ")
+    from_port = input("Start port: ")
+    to_port   = input("End port: ")
+    protocol  = input("Enter the protocol: \"tcp\", \"udp\" | \"-1\" for egress: ")
+    sg_name   = input("Enter the security group name: ")
+
+    if (type_rule == "egress"):
+      protocol = "-1"
+
+    # Check some errors
+    if type_rule not in types:
+      print("\nInvalid type")
+      return
+    if protocol not in protocols:
+      print("\nInvalid protocol")
+      return
+    try:
+      port_in = int(from_port)
+      port_out = int(to_port)
+      if (port_in < 0) or (port_out < 0):
+        print("\nInvalid port")
+    except:
+        print("\nInvalid port")
+
+    sg_id = self.get_sg_id_by_name(sg_name)
+
+    if sg_id is not None:
+      with open("./templates/security_groups/rule_setup.tf", mode="r", encoding="UTF-8") as template_file:
+        template = template_file.read()
+      
+      template = template.replace("var_name_rule", name)
+      template = template.replace("var_type", f'"{type_rule}"')
+      template = template.replace("var_from_port", from_port)
+      template = template.replace("var_to_port", to_port)
+      template = template.replace("var_protocol", f'"{protocol}"')
+      template = template.replace("var_sg_id", f'"{sg_id}"')
+
+      with open("./rules.tf", mode="r", encoding="UTF-8") as prev_rules:
+        prev_content = prev_rules.read()
+
+      new_content = prev_content + "\n" + template
+
+      with open("./rules.tf", mode="w+", encoding="UTF-8") as rules_file:
+        rules_file.write(new_content)
+
+      terraform_apply()
+    else:
+      print("\nSecurity group not found!")
+
+
+
+  def delete_rule_to_sg(self):
+    name = input("\nEnter the rule name you want to delete: ")
+
+    with open("./rules.tf", mode="r", encoding="UTF-8") as file:
+      lines = file.readlines()
+    
+    index = 0
+    list_index = []
+    append = False
+    # Check the lines with the rule to delete
+    for l in lines:
+      if f"resource \"aws_security_group_rule\" \"{name}\"" in l:
+        append = True
+      if append:
+        list_index.append(index)
+      if ("}" in l) and (append == True):
+        list_index.append(index)
+        append = False
+        break
+      index += 1
+
+    # Copy lines that is not in the rule deleted
+    content = []
+    idx = 0
+    for l in lines:
+      if (idx not in list_index):
+        content.append(l)
+      idx += 1
+
+    # rule not found
+    if (len(content) == len(list_index)):
+      print("\nRule not found")
+      return
+    
+    with open("./rules.tf", "w+", encoding="UTF-8") as file:
+      file.writelines(content)
+    terraform_apply()
 
 
 
