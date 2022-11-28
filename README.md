@@ -8,12 +8,13 @@ This repository is a Cloud Computing project that implements a VPC on AWS using 
 
 In the VPC created here, you will be able to:
 
-- [x]  Increase and decrease the number of instances
-- [x]  Create an IAM User
-- [x]  Delete an IAM User
-- [x]  Create a security group and associate it with instances
-- [x]  Delete a secutiry group
+- [x]  Increase and decrease the number of instances.
+- [x]  Create an IAM User.
+- [x]  Delete an IAM User.
+- [x]  Create a security group and associate it with instances.
+- [x]  Delete a secutiry group.
 - [x]  List all instances, users, security groups and its rules.
+- [x]  Create and delete rules for the security groups.
 
 ## How to execute this project
 
@@ -51,4 +52,6 @@ Commands
 - `delete user` - Delete an user
 - `create sg` - Create a new security group
 - `delete sg` - Delete a security group
+- `create rule` - Create a rule to the security group
+- `delete rule` - Delete a rule of the security group
 - `add sg to instance` - Associate the security group to a group of instances

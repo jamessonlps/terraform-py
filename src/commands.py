@@ -22,5 +22,7 @@ COMMANDS = {
   "create user": "Create a new IAM user",
   "delete user": "Delete an IAM user",
   "exit": "Finishes the application",
-  "list": "Show instances, users and security groups when it exists"
+  "list": "Show instances, users and security groups when it exists",
+  "create rule": "Create rule to security group",
+  "delete rule": "Delete rule to security group"
 }
